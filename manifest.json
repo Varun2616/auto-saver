@@ -3,7 +3,13 @@
   "name": "Prompt Auto-Saver",
   "version": "1.0",
   "description": "Saves textarea inputs locally to prevent data loss.",
-  "permissions": ["storage", "tabs", "alarms"],
+  "permissions": ["storage", "tabs", "alarms", "scripting"],
+  "host_permissions": [
+    "*://chatgpt.com/*",
+    "*://gemini.google.com/*",
+    "*://claude.ai/*"
+  ],
+  "optional_host_permissions": ["*://*/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -18,14 +24,8 @@
       "description": "Open the Prompt Auto-Saver popup"
     }
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://chatgpt.com/*",
-        "*://gemini.google.com/*",
-        "*://claude.ai/*"
-      ],
-      "js": ["content.js"]
-    }
-  ]
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
 }

@@ -1,9 +1,58 @@
 // background.js
-// Garbage Collector: periodically deletes expired drafts from chrome.storage.local.
+// Garbage Collector + dynamic content-script injection management.
 
 const GC_ALARM_NAME = 'draft-garbage-collector';
 const GC_INTERVAL_MINUTES = 60; // Run the GC once per hour
 const MAX_DRAFT_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+// Domain management for dynamic content-script injection
+const DEFAULT_DOMAINS = ['chatgpt.com', 'gemini.google.com', 'claude.ai'];
+const DOMAINS_STORAGE_KEY = 'managed_domains';
+
+// Stable content-script id per domain (chrome.scripting requires unique ids)
+function scriptIdForDomain(domain) {
+  return 'auto-saver-' + domain.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+function getManagedDomains() {
+  return chrome.storage.local.get(DOMAINS_STORAGE_KEY).then((result) => {
+    const stored = result[DOMAINS_STORAGE_KEY];
+    if (Array.isArray(stored)) return stored;
+    return DEFAULT_DOMAINS; // fall back to the built-in defaults
+  });
+}
+
+async function registerScriptForDomain(domain) {
+  try {
+    await chrome.scripting.registerContentScripts([{
+      id: scriptIdForDomain(domain),
+      matches: [`*://${domain}/*`],
+      js: ['content.js'],
+      runAt: 'document_idle'
+    }]);
+  } catch (err) {
+    // Registration can fail (duplicate id, missing file, missing permission);
+    // log and continue so one bad domain can't break the whole sync.
+    console.warn(`Failed to register content script for ${domain}:`, err.message);
+  }
+}
+
+async function unregisterScriptForDomain(domain) {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [scriptIdForDomain(domain)] });
+  } catch (err) {
+    console.warn(`Failed to unregister content script for ${domain}:`, err.message);
+  }
+}
+
+// Rebuild the full set of registered content scripts from the managed domains.
+async function syncAllScripts() {
+  const domains = await getManagedDomains();
+  await chrome.scripting.unregisterContentScripts(); // clear previous registrations
+  for (const domain of domains) {
+    await registerScriptForDomain(domain);
+  }
+}
 
 // Garbage collector: purges expired drafts. Entries are rolling history
 // stacks (arrays of { text, timestamp } objects), so each draft inside an
@@ -55,9 +104,25 @@ function createGcAlarm() {
   chrome.alarms.create(GC_ALARM_NAME, { periodInMinutes: GC_INTERVAL_MINUTES });
 }
 
-// Set up the alarm after install and on browser startup.
-chrome.runtime.onInstalled.addListener(createGcAlarm);
-chrome.runtime.onStartup.addListener(createGcAlarm);
+// On install/update: seed the default domains, set up the GC alarm, and
+// register content scripts for every managed domain.
+async function handleInstalled() {
+  const result = await chrome.storage.local.get(DOMAINS_STORAGE_KEY);
+  if (!Array.isArray(result[DOMAINS_STORAGE_KEY])) {
+    await chrome.storage.local.set({ [DOMAINS_STORAGE_KEY]: DEFAULT_DOMAINS });
+  }
+
+  createGcAlarm();
+  syncAllScripts();
+}
+
+chrome.runtime.onInstalled.addListener(handleInstalled);
+
+// On browser startup: ensure the GC alarm and registered scripts exist.
+chrome.runtime.onStartup.addListener(() => {
+  createGcAlarm();
+  syncAllScripts();
+});
 
 // Trigger the garbage collector whenever the alarm fires.
 chrome.alarms.onAlarm.addListener((alarm) => {

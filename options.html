@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Auto-Saver Settings</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 520px;
+      margin: 24px auto;
+      padding: 0 16px;
+      color: #1f2328;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+    }
+
+    .hint {
+      color: #6b7280;
+      font-size: 13px;
+      margin: 0 0 16px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    #domain-input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    #domain-input:focus {
+      outline: none;
+      border-color: #0969da;
+      box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.15);
+    }
+
+    button {
+      padding: 8px 14px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #ffffff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #f3f4f6;
+    }
+
+    #domain-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    #domain-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    #domain-list li button {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    .status.error {
+      color: #b42318;
+    }
+
+    .status.ok {
+      color: #1a7f37;
+    }
+  </style>
+</head>
+<body>
+  <h1>Prompt Auto-Saver Settings</h1>
+  <p class="hint">
+    Add or remove the domains where drafts are auto-saved. Adding a custom
+    domain may trigger a browser permission prompt.
+  </p>
+
+  <div class="add-row">
+    <input
+      type="text"
+      id="domain-input"
+      placeholder="example.com"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button id="add-domain-btn" type="button">Add Domain</button>
+  </div>
+
+  <ul id="domain-list"></ul>
+
+  <div id="status" class="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
