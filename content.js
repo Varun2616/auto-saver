@@ -1,6 +1,8 @@
 let debounceTimer;
-const DEBOUNCE_DELAY = 500; // Wait 500ms after typing stops
+const DEBOUNCE_DELAY = 2500; // Wait 2.5s after typing stops
 const MAX_HISTORY_ITEMS = 5; // Cap the rolling history per input
+const MIN_TEXT_LENGTH_DIFF = 5; // Minimum character change to record a fragment
+const MIN_SAVE_INTERVAL_MS = 30 * 1000; // Minimum time between snapshots for small changes
 
 // Helper function to sanitize URLs (remove volatile query parameters)
 function getCleanUrl() {
@@ -44,6 +46,20 @@ function saveDraft(storageKey, dataToSave) {
         // Skip consecutive duplicates of the most recent state
         if (history.length > 0 && history[0].text === dataToSave.text) {
             return;
+        }
+
+        // Filter minor fragments: only record a new snapshot if the text
+        // length changed significantly from the latest entry, or if enough
+        // time has elapsed since it — prevents backspace-and-type churn
+        // from cluttering the 5-item history limit.
+        if (history.length > 0) {
+            const latest = history[0];
+            const lengthDiff = Math.abs(dataToSave.text.length - latest.text.length);
+            const timeElapsed = Date.now() - (typeof latest.timestamp === 'number' ? latest.timestamp : 0);
+
+            if (lengthDiff < MIN_TEXT_LENGTH_DIFF && timeElapsed < MIN_SAVE_INTERVAL_MS) {
+                return;
+            }
         }
 
         // Push the new draft to the front of the history
