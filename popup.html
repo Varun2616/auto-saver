@@ -22,6 +22,62 @@
       border-bottom: 1px solid #e5e7eb;
     }
 
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fafafa;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #d0d7de;
+      border-radius: 20px;
+      transition: background 0.2s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+    }
+
+    .switch input:checked + .slider {
+      background: #1a7f37;
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(16px);
+    }
+
     .toolbar {
       position: sticky;
       top: 0;
@@ -152,6 +208,14 @@
 </head>
 <body>
   <h1>Recovered Drafts</h1>
+
+  <div class="toggle-row">
+    <span>Enable Auto-Saver on this site</span>
+    <label class="switch">
+      <input type="checkbox" id="site-toggle" />
+      <span class="slider"></span>
+    </label>
+  </div>
 
   <div class="toolbar">
     <input

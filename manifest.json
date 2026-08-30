@@ -4,11 +4,6 @@
   "version": "1.0",
   "description": "Saves textarea inputs locally to prevent data loss.",
   "permissions": ["storage", "tabs", "alarms", "scripting"],
-  "host_permissions": [
-    "*://chatgpt.com/*",
-    "*://gemini.google.com/*",
-    "*://claude.ai/*"
-  ],
   "optional_host_permissions": ["*://*/*"],
   "background": {
     "service_worker": "background.js"
@@ -23,9 +18,5 @@
       },
       "description": "Open the Prompt Auto-Saver popup"
     }
-  },
-  "options_ui": {
-    "page": "options.html",
-    "open_in_tab": true
   }
 }

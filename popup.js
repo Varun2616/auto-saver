@@ -62,6 +62,58 @@ searchInput.addEventListener('input', () => {
     renderDrafts(filtered, query);
 });
 
+// --- Per-site Auto-Saver toggle ---
+const siteToggle = document.getElementById('site-toggle');
+
+// Host-permission pattern for the current tab's origin, e.g. "https://chatgpt.com/*"
+function getOriginPattern(url) {
+    return new URL(url).origin + '/*';
+}
+
+// Reflect the current permission state for the active tab's origin
+function initSiteToggle(tabUrl) {
+    const originPattern = getOriginPattern(tabUrl);
+    chrome.permissions.contains({ origins: [originPattern] }, (result) => {
+        siteToggle.checked = Boolean(result);
+    });
+}
+
+siteToggle.addEventListener('change', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs && tabs[0];
+        if (!tab || !tab.url) {
+            siteToggle.checked = false;
+            showToast('Unable to determine the current tab URL.');
+            return;
+        }
+
+        const originPattern = getOriginPattern(tab.url);
+
+        if (siteToggle.checked) {
+            // Enable: request host permission, then inject content.js
+            chrome.permissions.request({ origins: [originPattern] }, (granted) => {
+                if (!granted) {
+                    siteToggle.checked = false;
+                    showToast('Permission denied — Auto-Saver not enabled.');
+                    return;
+                }
+
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content.js']
+                }, () => {
+                    showToast('Auto-Saver enabled on this site.');
+                });
+            });
+        } else {
+            // Disable: revoke the host permission
+            chrome.permissions.remove({ origins: [originPattern] }, () => {
+                showToast('Auto-Saver disabled on this site.');
+            });
+        }
+    });
+});
+
 // Sanitize a URL exactly like content.js does (origin + pathname, no query)
 function getCleanUrl(url) {
     const parsed = new URL(url);
@@ -182,6 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const cleanUrl = getCleanUrl(tab.url);
+
+        // Sync the site toggle with the current permission state
+        initSiteToggle(tab.url);
 
         // Fetch every saved entry and group drafts by their source input so
         // each history state can be numbered within its own input's stack.
