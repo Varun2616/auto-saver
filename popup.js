@@ -13,6 +13,23 @@ function getCleanUrl(url) {
     return parsed.origin + parsed.pathname;
 }
 
+// Human-readable "time elapsed since saved" label for a draft
+function formatTimeAgo(timestamp) {
+    if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) return '';
+
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 // Show a brief visual notification at the bottom of the popup
 let toastTimer;
 function showToast(message) {
@@ -60,13 +77,17 @@ function renderDraft(draft) {
     const draftDiv = document.createElement('div');
     draftDiv.className = 'draft';
 
-    // Header row: source input label on the left, compact icon on the right
+    // Header row: history-state label on the left, compact icon on the right.
+    // The label shows the draft number within its input's history, the source
+    // input ID, and how long ago it was saved, so multiple states of the same
+    // input are clearly distinguishable.
     const headerDiv = document.createElement('div');
     headerDiv.className = 'draft-header';
 
+    const timeAgo = formatTimeAgo(draft.timestamp);
     const sourceLabel = document.createElement('span');
     sourceLabel.className = 'source-label';
-    sourceLabel.textContent = `input: ${draft.inputId}`;
+    sourceLabel.textContent = `Draft ${draft.draftNumber} · ${draft.inputId}${timeAgo ? ` · ${timeAgo}` : ''}`;
 
     const copyButton = document.createElement('button');
     copyButton.className = 'copy-icon';
@@ -107,27 +128,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cleanUrl = getCleanUrl(tab.url);
 
-        // Fetch every saved entry and flatten all drafts for this page into a
-        // single combined list, attaching the source input identifier.
+        // Fetch every saved entry and group drafts by their source input so
+        // each history state can be numbered within its own input's stack.
         chrome.storage.local.get(null, (items) => {
-            const allDrafts = [];
+            const draftsByInput = new Map();
 
             for (const [key, entry] of Object.entries(items)) {
                 if (!key.startsWith(cleanUrl)) continue;
 
                 // Entries are arrays; tolerate legacy single-object entries
                 const history = Array.isArray(entry) ? entry : [entry];
-                const inputId = key.slice(cleanUrl.length + 1); // strip "url|"
+                const inputId = key.slice(cleanUrl.length + 1) || 'unknown'; // strip "url|"
 
-                for (const draft of history) {
-                    if (draft && typeof draft.text === 'string') {
-                        allDrafts.push({
-                            text: draft.text,
-                            timestamp: typeof draft.timestamp === 'number' ? draft.timestamp : 0,
-                            inputId: inputId || 'unknown'
-                        });
-                    }
-                }
+                const validDrafts = history.filter((draft) => draft && typeof draft.text === 'string');
+                // Newest first within this input's history
+                validDrafts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                draftsByInput.set(inputId, validDrafts);
+            }
+
+            // Flatten all inputs into one list, tagging each draft with its
+            // history-state number (Draft 1 = newest for that input) and its
+            // source input identifier.
+            const allDrafts = [];
+            for (const [inputId, history] of draftsByInput) {
+                history.forEach((draft, index) => {
+                    allDrafts.push({
+                        text: draft.text,
+                        timestamp: typeof draft.timestamp === 'number' ? draft.timestamp : 0,
+                        inputId,
+                        draftNumber: index + 1
+                    });
+                });
             }
 
             if (allDrafts.length === 0) {
