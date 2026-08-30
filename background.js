@@ -5,16 +5,41 @@ const GC_ALARM_NAME = 'draft-garbage-collector';
 const GC_INTERVAL_MINUTES = 60; // Run the GC once per hour
 const MAX_DRAFT_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
 
-// Delete any stored draft whose timestamp is older than 48 hours.
+// Garbage collector: purges expired drafts. Entries are rolling history
+// stacks (arrays of { text, timestamp } objects), so each draft inside an
+// array is inspected individually. Legacy single-draft entries are also
+// handled.
 function garbageCollect() {
   chrome.storage.local.get(null, (items) => {
     const now = Date.now();
     const keysToRemove = [];
+    const updates = {};
 
     for (const [key, entry] of Object.entries(items)) {
-      if (entry && typeof entry.timestamp === 'number' && now - entry.timestamp > MAX_DRAFT_AGE_MS) {
+      if (Array.isArray(entry)) {
+        // Keep drafts that are still fresh (or undated); drop the stale ones
+        const freshDrafts = entry.filter((draft) => {
+          if (!draft || typeof draft.timestamp !== 'number') return true;
+          return now - draft.timestamp <= MAX_DRAFT_AGE_MS;
+        });
+
+        if (freshDrafts.length === 0) {
+          // Nothing recent left: remove the storage key entirely
+          keysToRemove.push(key);
+        } else if (freshDrafts.length !== entry.length) {
+          // Some drafts expired: save the trimmed array back
+          updates[key] = freshDrafts;
+        }
+      } else if (entry && typeof entry.timestamp === 'number' && now - entry.timestamp > MAX_DRAFT_AGE_MS) {
+        // Legacy single-draft entry that has expired
         keysToRemove.push(key);
       }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      chrome.storage.local.set(updates, () => {
+        console.log(`Garbage collector trimmed ${Object.keys(updates).length} draft history(ies).`);
+      });
     }
 
     if (keysToRemove.length > 0) {
