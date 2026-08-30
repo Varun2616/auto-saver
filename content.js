@@ -43,49 +43,76 @@ function getTargetText(target) {
     return editableRoot.innerText;
 }
 
+// Defensively access chrome.storage.local. Returns null (with a warning)
+// when the API is missing or the extension context has been invalidated, so
+// callers can bail gracefully instead of hard-crashing.
+function getStorageLocal() {
+    try {
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            console.warn('chrome.storage.local is unavailable; draft save skipped.');
+            return null;
+        }
+        return chrome.storage.local;
+    } catch (err) {
+        console.warn('chrome.storage.local is unavailable; draft save skipped.', err);
+        return null;
+    }
+}
+
 // Save a draft into the rolling history stack for a given storage key.
 // The entry is an array of { text, timestamp } objects, newest first.
 function saveDraft(storageKey, dataToSave) {
-    chrome.storage.local.get(storageKey, (result) => {
-        // Start a fresh array if no entry exists yet
-        const history = Array.isArray(result[storageKey]) ? result[storageKey] : [];
+    const storage = getStorageLocal();
+    if (!storage) return;
 
-        // Skip consecutive duplicates of the most recent state
-        if (history.length > 0 && history[0].text === dataToSave.text) {
-            return;
-        }
+    try {
+        storage.get(storageKey, (result) => {
+            // Start a fresh array if no entry exists yet
+            const history = Array.isArray(result[storageKey]) ? result[storageKey] : [];
 
-        // Filter minor fragments: only record a new snapshot if the text
-        // length changed significantly from the latest entry, or if enough
-        // time has elapsed since it — prevents backspace-and-type churn
-        // from cluttering the 5-item history limit.
-        if (history.length > 0) {
-            const latest = history[0];
-            const lengthDiff = Math.abs(dataToSave.text.length - latest.text.length);
-            const timeElapsed = Date.now() - (typeof latest.timestamp === 'number' ? latest.timestamp : 0);
-
-            if (lengthDiff < MIN_TEXT_LENGTH_DIFF && timeElapsed < MIN_SAVE_INTERVAL_MS) {
+            // Skip consecutive duplicates of the most recent state
+            if (history.length > 0 && history[0].text === dataToSave.text) {
                 return;
             }
-        }
 
-        // Push the new draft to the front of the history
-        history.unshift(dataToSave);
+            // Filter minor fragments: only record a new snapshot if the text
+            // length changed significantly from the latest entry, or if enough
+            // time has elapsed since it — prevents backspace-and-type churn
+            // from cluttering the 5-item history limit.
+            if (history.length > 0) {
+                const latest = history[0];
+                const lengthDiff = Math.abs(dataToSave.text.length - latest.text.length);
+                const timeElapsed = Date.now() - (typeof latest.timestamp === 'number' ? latest.timestamp : 0);
 
-        // Cap the history length at MAX_HISTORY_ITEMS
-        if (history.length > MAX_HISTORY_ITEMS) {
-            history.length = MAX_HISTORY_ITEMS;
-        }
-
-        chrome.storage.local.set({ [storageKey]: history }, () => {
-            // Surface storage quota/context errors via chrome.runtime.lastError
-            if (chrome.runtime.lastError) {
-                console.error('Draft save failed:', chrome.runtime.lastError.message);
-                return;
+                if (lengthDiff < MIN_TEXT_LENGTH_DIFF && timeElapsed < MIN_SAVE_INTERVAL_MS) {
+                    return;
+                }
             }
-            console.log(`Draft saved for: ${storageKey}`);
+
+            // Push the new draft to the front of the history
+            history.unshift(dataToSave);
+
+            // Cap the history length at MAX_HISTORY_ITEMS
+            if (history.length > MAX_HISTORY_ITEMS) {
+                history.length = MAX_HISTORY_ITEMS;
+            }
+
+            try {
+                storage.set({ [storageKey]: history }, () => {
+                    // Surface storage quota/context errors via chrome.runtime.lastError
+                    if (chrome.runtime && chrome.runtime.lastError) {
+                        console.error('Draft save failed:', chrome.runtime.lastError.message);
+                        return;
+                    }
+                    console.log(`Draft saved for: ${storageKey}`);
+                });
+            } catch (err) {
+                console.warn('Draft save write failed:', err.message);
+            }
         });
-    });
+    } catch (err) {
+        console.warn('Draft save read failed:', err.message);
+    }
 }
 
 document.addEventListener('input', (event) => {
