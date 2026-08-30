@@ -7,6 +7,28 @@ const MAX_RECENT_DRAFTS = 5; // Show at most the 5 most recent drafts
 const CLIPBOARD_ICON = '📋';
 const COPIED_ICON = '✅';
 
+// Export the entire contents of chrome.storage.local as a formatted JSON
+// file downloaded via a Blob URL.
+function exportDrafts() {
+    chrome.storage.local.get(null, (items) => {
+        const json = JSON.stringify(items, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `prompt-auto-saver-export-${Date.now()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+    });
+}
+
+// Wire up the Export Drafts button
+document.getElementById('export-btn').addEventListener('click', exportDrafts);
+
 // Sanitize a URL exactly like content.js does (origin + pathname, no query)
 function getCleanUrl(url) {
     const parsed = new URL(url);

@@ -22,6 +22,28 @@
       border-bottom: 1px solid #e5e7eb;
     }
 
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .toolbar button {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2328;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover {
+      background: #f3f4f6;
+    }
+
     #drafts-container {
       display: flex;
       flex-direction: column;
@@ -108,6 +130,11 @@
 </head>
 <body>
   <h1>Recovered Drafts</h1>
+
+  <div class="toolbar">
+    <button id="export-btn" type="button">Export Drafts</button>
+  </div>
+
   <!-- Container that holds the rendered recovered drafts -->
   <div id="drafts-container"></div>
 
