@@ -1,3 +1,10 @@
+// Idempotency guard: if this page already runs the content script, skip
+// re-attaching listeners (e.g., when the popup auto-re-injects on open).
+if (document.documentElement.dataset.pasContentLoaded === '1') {
+    return;
+}
+document.documentElement.dataset.pasContentLoaded = '1';
+
 let debounceTimer;
 const DEBOUNCE_DELAY = 2500; // Wait 2.5s after typing stops
 const MAX_HISTORY_ITEMS = 5; // Cap the rolling history per input

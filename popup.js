@@ -70,11 +70,33 @@ function getOriginPattern(url) {
     return new URL(url).origin + '/*';
 }
 
-// Reflect the current permission state for the active tab's origin
-function initSiteToggle(tabUrl) {
-    const originPattern = getOriginPattern(tabUrl);
+// Make sure content.js is running in the given tab. Safe to call repeatedly:
+// content.js has an idempotency guard that skips re-attaching listeners.
+function ensureInjected(tabId) {
+    chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content.js']
+    }, () => {
+        if (chrome.runtime.lastError) {
+            console.error('[Prompt Auto-Saver] auto-inject FAILED:', chrome.runtime.lastError.message);
+            return;
+        }
+        console.log('[Prompt Auto-Saver] auto-injected content.js into tab', tabId);
+    });
+}
+
+// Reflect the current permission state for the active tab's origin. If the
+// permission is already granted (toggle renders ON), also ensure content.js
+// is actually injected — it won't be after a reload or navigation, and the
+// user shouldn't have to toggle off and on to recover it.
+function initSiteToggle(tab) {
+    const originPattern = getOriginPattern(tab.url);
     chrome.permissions.contains({ origins: [originPattern] }, (result) => {
         siteToggle.checked = Boolean(result);
+
+        if (result && typeof tab.id === 'number') {
+            ensureInjected(tab.id);
+        }
     });
 }
 
@@ -257,8 +279,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cleanUrl = getCleanUrl(tab.url);
 
-        // Sync the site toggle with the current permission state
-        initSiteToggle(tab.url);
+        // Sync the site toggle with the current permission state and
+        // auto-inject content.js if permission is already granted
+        initSiteToggle(tab);
 
         // Fetch every saved entry and group drafts by their source input so
         // each history state can be numbered within its own input's stack.
