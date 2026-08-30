@@ -10,6 +10,14 @@
   "action": {
     "default_popup": "popup.html"
   },
+  "commands": {
+    "open_popup": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Open the Prompt Auto-Saver popup"
+    }
+  },
   "content_scripts": [
     {
       "matches": [

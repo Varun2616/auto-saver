@@ -65,3 +65,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     garbageCollect();
   }
 });
+
+// Keyboard shortcut (Alt+Shift+S) opens the extension popup.
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'open_popup') {
+    chrome.action.openPopup();
+  }
+});
