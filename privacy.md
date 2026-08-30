@@ -100,4 +100,4 @@ If this policy changes, the "Last updated" date above will be revised and the up
 
 ## 11. Contact
 
-For questions about this privacy policy or the extension, please open an issue in the project repository or contact the developer at: **[your-email@example.com]**
+For questions about this privacy policy or the extension, please open an issue in the project repository or contact the developer at: **varunjha2616@gmail.com**
