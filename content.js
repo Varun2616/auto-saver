@@ -17,11 +17,27 @@ function getUniqueInputId(element) {
     return 'textarea_index_' + textareas.indexOf(element);
 }
 
+// Helper function to extract the current text from an editable target
+function getTargetText(target) {
+    // Textareas store their content in the value property
+    if (target.tagName.toLowerCase() === 'textarea') {
+        return target.value;
+    }
+
+    // Contenteditable elements store their content in innerText. When the
+    // target only inherits editability, read from the editable host element.
+    const editableRoot = target.closest('[contenteditable]') || target;
+    return editableRoot.innerText;
+}
+
 document.addEventListener('input', (event) => {
   const target = event.target;
   
-  // Only target text areas
-  if (target.tagName.toLowerCase() !== 'textarea') return;
+  // Only target text areas or contenteditable elements (attribute set to
+  // true, or inherited from an ancestor)
+  const isTextarea = target.tagName.toLowerCase() === 'textarea';
+  const isContentEditable = target.isContentEditable === true;
+  if (!isTextarea && !isContentEditable) return;
 
   clearTimeout(debounceTimer);
   
@@ -33,7 +49,7 @@ document.addEventListener('input', (event) => {
     const storageKey = `${cleanUrl}|${inputId}`; 
     
     const dataToSave = {
-        text: target.value,
+        text: getTargetText(target),
         timestamp: Date.now() // Crucial for solving the storage bloat flaw
     };
     
