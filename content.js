@@ -1,5 +1,6 @@
 let debounceTimer;
 const DEBOUNCE_DELAY = 500; // Wait 500ms after typing stops
+const MAX_HISTORY_ITEMS = 5; // Cap the rolling history per input
 
 // Helper function to sanitize URLs (remove volatile query parameters)
 function getCleanUrl() {
@@ -33,6 +34,32 @@ function getTargetText(target) {
     return editableRoot.innerText;
 }
 
+// Save a draft into the rolling history stack for a given storage key.
+// The entry is an array of { text, timestamp } objects, newest first.
+function saveDraft(storageKey, dataToSave) {
+    chrome.storage.local.get(storageKey, (result) => {
+        // Start a fresh array if no entry exists yet
+        const history = Array.isArray(result[storageKey]) ? result[storageKey] : [];
+
+        // Skip consecutive duplicates of the most recent state
+        if (history.length > 0 && history[0].text === dataToSave.text) {
+            return;
+        }
+
+        // Push the new draft to the front of the history
+        history.unshift(dataToSave);
+
+        // Cap the history length at MAX_HISTORY_ITEMS
+        if (history.length > MAX_HISTORY_ITEMS) {
+            history.length = MAX_HISTORY_ITEMS;
+        }
+
+        chrome.storage.local.set({ [storageKey]: history }, () => {
+            console.log(`Draft saved for: ${storageKey}`);
+        });
+    });
+}
+
 document.addEventListener('input', (event) => {
   const target = event.target;
   
@@ -56,8 +83,6 @@ document.addEventListener('input', (event) => {
         timestamp: Date.now() // Crucial for solving the storage bloat flaw
     };
     
-    chrome.storage.local.set({ [storageKey]: dataToSave }, () => {
-      console.log(`Draft saved for: ${storageKey}`);
-    });
+    saveDraft(storageKey, dataToSave);
   }, DEBOUNCE_DELAY);
 });
