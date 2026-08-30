@@ -81,6 +81,10 @@ function initSiteToggle(tabUrl) {
 siteToggle.addEventListener('change', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tab = tabs && tabs[0];
+
+        // [TEMP DEBUG] Confirm we are targeting the correct active tab.
+        console.log('[Prompt Auto-Saver] toggle change; active tab:', tab ? { id: tab.id, url: tab.url } : null);
+
         if (!tab || !tab.url) {
             siteToggle.checked = false;
             showToast('Unable to determine the current tab URL.');
@@ -93,6 +97,9 @@ siteToggle.addEventListener('change', () => {
             // Enable: request host permission, then inject content.js
             // immediately so it works without a page reload.
             chrome.permissions.request({ origins: [originPattern] }, (granted) => {
+                // [TEMP DEBUG] Confirm the permission grant result.
+                console.log('[Prompt Auto-Saver] permissions.request result:', granted);
+
                 if (!granted) {
                     siteToggle.checked = false;
                     showToast('Permission denied — Auto-Saver not enabled.');
@@ -110,16 +117,19 @@ siteToggle.addEventListener('change', () => {
                     files: ['content.js']
                 }, () => {
                     if (chrome.runtime.lastError) {
+                        console.error('[Prompt Auto-Saver] executeScript FAILED:', chrome.runtime.lastError.message);
                         siteToggle.checked = false;
                         showToast(`Injection failed: ${chrome.runtime.lastError.message}`);
                         return;
                     }
+                    console.log('[Prompt Auto-Saver] executeScript injected content.js into tab', tab.id);
                     showToast('Auto-Saver enabled on this site.');
                 });
             });
         } else {
             // Disable: revoke the host permission
-            chrome.permissions.remove({ origins: [originPattern] }, () => {
+            chrome.permissions.remove({ origins: [originPattern] }, (removed) => {
+                console.log('[Prompt Auto-Saver] permissions.remove result:', removed);
                 showToast('Auto-Saver disabled on this site.');
             });
         }
