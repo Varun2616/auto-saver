@@ -12,9 +12,12 @@ function getUniqueInputId(element) {
     if (element.id) return element.id;
     if (element.name) return element.name;
     
-    // Fallback: use its exact index relative to other textareas on the page
-    const textareas = Array.from(document.querySelectorAll('textarea'));
-    return 'textarea_index_' + textareas.indexOf(element);
+    // Fallback: use its exact index relative to every editable field on the
+    // page, combining textareas and contenteditable elements
+    const editableFields = Array.from(
+        document.querySelectorAll('textarea, [contenteditable]')
+    );
+    return 'input_index_' + editableFields.indexOf(element);
 }
 
 // Helper function to extract the current text from an editable target
