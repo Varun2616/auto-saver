@@ -11,9 +11,6 @@ const MAX_HISTORY_ITEMS = 5; // Cap the rolling history per input
 const MIN_TEXT_LENGTH_DIFF = 5; // Minimum character change to record a fragment
 const MIN_SAVE_INTERVAL_MS = 30 * 1000; // Minimum time between snapshots for small changes
 
-// [TEMP DEBUG] Confirm the content script actually loaded on this page.
-console.log('[Prompt Auto-Saver] content.js loaded on', window.location.href);
-
 // Helper function to sanitize URLs (remove volatile query parameters)
 function getCleanUrl() {
     const url = new URL(window.location.href);
@@ -53,15 +50,8 @@ function saveDraft(storageKey, dataToSave) {
         // Start a fresh array if no entry exists yet
         const history = Array.isArray(result[storageKey]) ? result[storageKey] : [];
 
-        // [TEMP DEBUG] Confirm the read worked and show the existing history.
-        console.log('[Prompt Auto-Saver] read history for', storageKey, {
-            entries: history.length,
-            readError: chrome.runtime.lastError ? chrome.runtime.lastError.message : null
-        });
-
         // Skip consecutive duplicates of the most recent state
         if (history.length > 0 && history[0].text === dataToSave.text) {
-            console.log('[Prompt Auto-Saver] skipped: consecutive duplicate for', storageKey);
             return;
         }
 
@@ -75,7 +65,6 @@ function saveDraft(storageKey, dataToSave) {
             const timeElapsed = Date.now() - (typeof latest.timestamp === 'number' ? latest.timestamp : 0);
 
             if (lengthDiff < MIN_TEXT_LENGTH_DIFF && timeElapsed < MIN_SAVE_INTERVAL_MS) {
-                console.log('[Prompt Auto-Saver] skipped: minor fragment for', storageKey, { lengthDiff, timeElapsed });
                 return;
             }
         }
@@ -89,14 +78,12 @@ function saveDraft(storageKey, dataToSave) {
         }
 
         chrome.storage.local.set({ [storageKey]: history }, () => {
-            // [TEMP DEBUG] Verify the write succeeded (quota/context errors
-            // surface via chrome.runtime.lastError).
-            const err = chrome.runtime.lastError;
-            if (err) {
-                console.error('[Prompt Auto-Saver] storage.set FAILED:', err.message);
+            // Surface storage quota/context errors via chrome.runtime.lastError
+            if (chrome.runtime.lastError) {
+                console.error('Draft save failed:', chrome.runtime.lastError.message);
                 return;
             }
-            console.log(`Draft saved for: ${storageKey}`, { historyLength: history.length });
+            console.log(`Draft saved for: ${storageKey}`);
         });
     });
 }
@@ -108,16 +95,6 @@ document.addEventListener('input', (event) => {
   // true, or inherited from an ancestor)
   const isTextarea = target.tagName.toLowerCase() === 'textarea';
   const isContentEditable = target.isContentEditable === true;
-
-  // [TEMP DEBUG] Log every input event so we can confirm the listener is
-  // firing and how the target is being classified.
-  console.log('[Prompt Auto-Saver] input event', {
-    tagName: target.tagName,
-    isTextarea,
-    isContentEditable,
-    ignored: !(isTextarea || isContentEditable)
-  });
-
   if (!isTextarea && !isContentEditable) return;
 
   clearTimeout(debounceTimer);
@@ -133,12 +110,6 @@ document.addEventListener('input', (event) => {
         text: getTargetText(target),
         timestamp: Date.now() // Crucial for solving the storage bloat flaw
     };
-
-    // [TEMP DEBUG] Debounce fired — show what is about to be saved.
-    console.log('[Prompt Auto-Saver] debounce fired, saving', {
-      storageKey,
-      textLength: dataToSave.text.length
-    });
     
     saveDraft(storageKey, dataToSave);
   }, DEBOUNCE_DELAY);
