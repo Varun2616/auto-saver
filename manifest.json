@@ -3,7 +3,7 @@
   "name": "Prompt Auto-Saver",
   "version": "1.0",
   "description": "Saves textarea inputs locally to prevent data loss.",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "tabs", "alarms"],
   "background": {
     "service_worker": "background.js"
   },
