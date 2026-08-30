@@ -91,6 +91,7 @@ siteToggle.addEventListener('change', () => {
 
         if (siteToggle.checked) {
             // Enable: request host permission, then inject content.js
+            // immediately so it works without a page reload.
             chrome.permissions.request({ origins: [originPattern] }, (granted) => {
                 if (!granted) {
                     siteToggle.checked = false;
@@ -98,10 +99,21 @@ siteToggle.addEventListener('change', () => {
                     return;
                 }
 
+                if (typeof tab.id !== 'number') {
+                    siteToggle.checked = false;
+                    showToast('Unable to inject into this tab.');
+                    return;
+                }
+
                 chrome.scripting.executeScript({
                     target: { tabId: tab.id },
                     files: ['content.js']
                 }, () => {
+                    if (chrome.runtime.lastError) {
+                        siteToggle.checked = false;
+                        showToast(`Injection failed: ${chrome.runtime.lastError.message}`);
+                        return;
+                    }
                     showToast('Auto-Saver enabled on this site.');
                 });
             });
