@@ -4,6 +4,8 @@
 // most recent drafts are rendered.
 
 const MAX_RECENT_DRAFTS = 5; // Show at most the 5 most recent drafts
+const CLIPBOARD_ICON = '📋';
+const COPIED_ICON = '✅';
 
 // Sanitize a URL exactly like content.js does (origin + pathname, no query)
 function getCleanUrl(url) {
@@ -11,45 +13,76 @@ function getCleanUrl(url) {
     return parsed.origin + parsed.pathname;
 }
 
+// Show a brief visual notification at the bottom of the popup
+let toastTimer;
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 1200);
+}
+
 // Copy text to the clipboard, with a legacy fallback for contexts where the
 // async Clipboard API is unavailable.
-function copyToClipboard(text, button) {
-    const restoreLabel = () => {
-        button.textContent = 'Copy to Clipboard';
+function copyToClipboard(text, iconButton) {
+    const flashCopied = () => {
+        iconButton.textContent = COPIED_ICON;
+        iconButton.classList.add('copied');
+        showToast('Copied to clipboard');
+        setTimeout(() => {
+            iconButton.textContent = CLIPBOARD_ICON;
+            iconButton.classList.remove('copied');
+        }, 1200);
     };
 
-    navigator.clipboard.writeText(text).then(() => {
-        button.textContent = 'Copied!';
-        setTimeout(restoreLabel, 1500);
-    }).catch(() => {
+    navigator.clipboard.writeText(text).then(flashCopied).catch(() => {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        button.textContent = 'Copied!';
-        setTimeout(restoreLabel, 1500);
+        flashCopied();
     });
 }
 
-// Render a single recovered draft into the container
+// Render a single recovered draft into the container. Each draft has a
+// compact clipboard icon button instead of a full-size label button.
 function renderDraft(draft) {
     const container = document.getElementById('drafts-container');
 
     const draftDiv = document.createElement('div');
     draftDiv.className = 'draft';
 
+    // Header row: source input label on the left, compact icon on the right
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'draft-header';
+
+    const sourceLabel = document.createElement('span');
+    sourceLabel.className = 'source-label';
+    sourceLabel.textContent = `input: ${draft.inputId}`;
+
+    const copyButton = document.createElement('button');
+    copyButton.className = 'copy-icon';
+    copyButton.textContent = CLIPBOARD_ICON;
+    copyButton.title = 'Copy to Clipboard';
+    copyButton.addEventListener('click', () => copyToClipboard(draft.text, copyButton));
+
+    headerDiv.appendChild(sourceLabel);
+    headerDiv.appendChild(copyButton);
+
     const textDiv = document.createElement('div');
     textDiv.className = 'draft-text';
     textDiv.textContent = draft.text;
 
-    const copyButton = document.createElement('button');
-    copyButton.textContent = 'Copy to Clipboard';
-    copyButton.addEventListener('click', () => copyToClipboard(draft.text, copyButton));
-
+    draftDiv.appendChild(headerDiv);
     draftDiv.appendChild(textDiv);
-    draftDiv.appendChild(copyButton);
     container.appendChild(draftDiv);
 }
 
