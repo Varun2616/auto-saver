@@ -7,6 +7,9 @@ const MAX_RECENT_DRAFTS = 5; // Show at most the 5 most recent drafts
 const CLIPBOARD_ICON = '📋';
 const COPIED_ICON = '✅';
 
+// The drafts currently rendered in the popup (subject to the search filter)
+let currentDrafts = [];
+
 // Export the entire contents of chrome.storage.local as a formatted JSON
 // file downloaded via a Blob URL.
 function exportDrafts() {
@@ -28,6 +31,36 @@ function exportDrafts() {
 
 // Wire up the Export Drafts button
 document.getElementById('export-btn').addEventListener('click', exportDrafts);
+
+// Clear the drafts container
+function clearContainer() {
+    const container = document.getElementById('drafts-container');
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+}
+
+// Render a list of drafts, or an appropriate empty-state message
+function renderDrafts(drafts, query) {
+    clearContainer();
+
+    if (drafts.length === 0) {
+        showEmpty(query ? 'No drafts match your search.' : 'No saved drafts for this page yet.');
+        return;
+    }
+
+    drafts.forEach(renderDraft);
+}
+
+// Real-time search: filter the rendered draft cards by keyword in the text
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim().toLowerCase();
+    const filtered = query
+        ? currentDrafts.filter((draft) => draft.text.toLowerCase().includes(query))
+        : currentDrafts;
+    renderDrafts(filtered, query);
+});
 
 // Sanitize a URL exactly like content.js does (origin + pathname, no query)
 function getCleanUrl(url) {
@@ -184,17 +217,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            if (allDrafts.length === 0) {
-                showEmpty('No saved drafts for this page yet.');
-                return;
-            }
-
             // Sort the whole collection by timestamp, newest first
             allDrafts.sort((a, b) => b.timestamp - a.timestamp);
 
-            // Render only the most recent drafts
-            const recentDrafts = allDrafts.slice(0, MAX_RECENT_DRAFTS);
-            recentDrafts.forEach(renderDraft);
+            // Keep only the most recent drafts and render them, applying any
+            // active search query so the filter survives a re-render
+            currentDrafts = allDrafts.slice(0, MAX_RECENT_DRAFTS);
+
+            const query = searchInput.value.trim().toLowerCase();
+            const filtered = query
+                ? currentDrafts.filter((draft) => draft.text.toLowerCase().includes(query))
+                : currentDrafts;
+            renderDrafts(filtered, query);
         });
     });
 });

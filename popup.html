@@ -23,10 +23,32 @@
     }
 
     .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
       display: flex;
       flex-direction: column;
       gap: 8px;
       margin-bottom: 12px;
+      padding-bottom: 8px;
+      background: #ffffff;
+    }
+
+    .search-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2328;
+      font-size: 12px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #0969da;
+      box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.15);
     }
 
     .toolbar button {
@@ -132,6 +154,13 @@
   <h1>Recovered Drafts</h1>
 
   <div class="toolbar">
+    <input
+      type="search"
+      id="search-input"
+      class="search-input"
+      placeholder="Search drafts…"
+      autocomplete="off"
+    />
     <button id="export-btn" type="button">Export Drafts</button>
   </div>
 
